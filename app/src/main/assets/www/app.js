@@ -37,6 +37,8 @@ const state = {
   mode: 'photo',               // 'photo' | 'video'
   recording: false,
   stream: null,
+  audioStream: null,           // 動画録画用の音声ストリーム（取得できない端末では null のまま）
+  audioTried: false,
   mediaRecorder: null,
   recordedChunks: [],
   recTimerHandle: null,
@@ -160,8 +162,9 @@ async function startCamera() {
   }
 
   const res = RESOLUTIONS[state.resolutionIndex];
+  // 映像だけを要求する（マイクは別途・失敗してもプレビューを止めないようにする）
   const constraints = {
-    audio: true,
+    audio: false,
     video: {
       facingMode: state.facing,
       width: { ideal: res.w },
@@ -179,9 +182,25 @@ async function startCamera() {
   } catch (err) {
     showMessage(
       'カメラを起動できませんでした。\n' +
-      'アプリの設定からカメラ・マイクの権限を許可してください。\n' +
+      'アプリの設定からカメラの権限を許可してください。\n' +
       '(' + (err && err.message ? err.message : err) + ')'
     );
+    return;
+  }
+
+  // マイクは映像と切り離して、失敗してもカメラ自体は使えるようにする
+  ensureAudioStream();
+}
+
+// 動画録画用のマイク音声を確保する（失敗しても無視して映像だけで録画を続ける）
+async function ensureAudioStream() {
+  if (state.audioStream || state.audioTried) return;
+  state.audioTried = true;
+  try {
+    state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    console.warn('マイクを利用できませんでした。音声なしで録画します。', err);
+    state.audioStream = null;
   }
 }
 
@@ -243,10 +262,14 @@ function pickMimeType() {
   return '';
 }
 
-function startRecording() {
+async function startRecording() {
   if (!state.stream) return;
+  // まだマイクを試していなければここでもう一度だけ試す（失敗しても無音で続行）
+  if (!state.audioStream && !state.audioTried) {
+    await ensureAudioStream();
+  }
   const canvasStream = canvas.captureStream(30); // フィルター適用後の映像
-  const audioTracks = state.stream.getAudioTracks();
+  const audioTracks = state.audioStream ? state.audioStream.getAudioTracks() : [];
   const combined = new MediaStream([
     ...canvasStream.getVideoTracks(),
     ...audioTracks,
