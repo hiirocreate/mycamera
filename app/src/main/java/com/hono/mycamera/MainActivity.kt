@@ -19,10 +19,25 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewClientCompat
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+
+// アプリ内だけで完結する「ダミーの」https アドレス。実際にネットへは繋がらない。
+// file:// のままだとWebViewの一部バージョンで「安全な接続」と見なされず、
+// カメラ・マイクAPI(getUserMedia)がブロックされてしまうため、この仕組みで回避する。
+private const val VIRTUAL_HOST = "https://appassets.androidplatform.net/assets/www/index.html"
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+
+    private val assetLoader by lazy {
+        WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+    }
 
     // カメラ・マイクの権限をまとめてリクエストするためのランチャー
     private val permissionLauncher = registerForActivityResult(
@@ -38,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         }
         // 権限の結果に関わらずWebViewを読み込む（WebView側の getUserMedia が
         // 権限なしの場合は失敗し、画面上にメッセージが表示される）
-        webView.loadUrl("file:///android_asset/www/index.html")
+        webView.loadUrl(VIRTUAL_HOST)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +73,7 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (notGranted.isEmpty()) {
-            webView.loadUrl("file:///android_asset/www/index.html")
+            webView.loadUrl(VIRTUAL_HOST)
         } else {
             permissionLauncher.launch(needed)
         }
@@ -91,6 +106,16 @@ class MainActivity : AppCompatActivity() {
         settings.cacheMode = WebSettings.LOAD_DEFAULT
 
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidBridge")
+
+        // file:// の代わりに、疑似https経由でローカルのwww/フォルダを配信する
+        webView.webViewClient = object : WebViewClientCompat() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+        }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
