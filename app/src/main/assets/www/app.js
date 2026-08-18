@@ -197,10 +197,24 @@ async function ensureAudioStream() {
   if (state.audioStream || state.audioTried) return;
   state.audioTried = true;
   try {
+    // まずは通常の設定で取得を試みる
     state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    console.warn('マイクを利用できませんでした。音声なしで録画します。', err);
-    state.audioStream = null;
+    console.warn('マイクの取得に失敗（1回目）。音声処理を無効にして再試行します。', err);
+    try {
+      // 端末によっては、エコーキャンセラー等の音声処理を有効にした状態だと
+      // マイクを開けないことがあるため、それらを無効化して再試行する
+      state.audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+    } catch (err2) {
+      console.warn('マイクを利用できませんでした。音声なしで録画します。', err2);
+      state.audioStream = null;
+    }
   }
 }
 
