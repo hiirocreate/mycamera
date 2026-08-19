@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>MyCamera</title>
+
+<!-- 通常のPWA向け（Android Chromeなど） -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<!-- iPhone(Safari)の「ホーム画面に追加」向け設定 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MyCamera">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- カメラのプレビュー用（実際には映さず映像取得だけに使う） -->
+  <video id="video" autoplay playsinline muted></video>
+
+  <!-- フィルターを適用した映像を描画するキャンバス（これが実際に画面に表示される） -->
+  <canvas id="canvas"></canvas>
+
+  <!-- 撮影直後のフラッシュ演出用 -->
+  <div id="flash"></div>
+
+  <!-- 権限エラーなどのメッセージ表示 -->
+  <div id="message" class="hidden"></div>
+
+  <!-- ホーム画面追加を促す案内（初回・Safariのブラウザ表示のときだけ出す） -->
+  <div id="installTip" class="hidden">
+    共有ボタン
+    <span class="shareIcon">⬆️</span>
+    から「ホーム画面に追加」をすると、アプリのように全画面で使えます
+    <button id="installTipClose">×</button>
+  </div>
+
+  <!-- 上部バー -->
+  <div id="topBar">
+    <button id="soundToggle" class="iconBtn" title="シャッター音のオン/オフ">🔔</button>
+    <select id="resolutionSelect" class="pill"></select>
+    <button id="switchCamera" class="iconBtn" title="カメラ切り替え">🔄</button>
+  </div>
+
+  <!-- 録画中インジケーター -->
+  <div id="recIndicator" class="hidden">
+    <span class="dot"></span><span id="recTimer">00:00</span>
+  </div>
+
+  <!-- フィルター選択（横スクロール） -->
+  <div id="filterStrip"></div>
+
+  <!-- 下部の撮影コントロール -->
+  <div id="bottomBar">
+    <div id="modeSwitch">
+      <button id="photoModeBtn" class="modeBtn active">写真</button>
+      <button id="videoModeBtn" class="modeBtn">動画</button>
+    </div>
+    <button id="shutterBtn"><span id="shutterInner"></span></button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
